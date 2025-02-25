@@ -51,7 +51,7 @@
 ### Установка и запуск
 - Клонируйте репозиторий:
 ```bash
-git clone https://github.com/your-repo/number-guessing-game.git
+git clone https://github.com/foxseele/number-guessing-game.git
 cd number-guessing-game
 ```
 - Запустите игру:
