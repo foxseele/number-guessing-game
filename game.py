@@ -1,113 +1,142 @@
 import random
 import time
 
-# Словарь для хранения рекордов (минимальное количество попыток для каждого уровня)
-records = {
-    "easy": {"attempts": float('inf'), "time": float('inf')},
-    "medium": {"attempts": float('inf'), "time": float('inf')},
-    "hard": {"attempts": float('inf'), "time": float('inf')}
-}
-
-def main():
-    print("Добро пожаловать в игру 'Угадай число'!")
+class Game:
+    """Основной класс игры 'Угадай число'"""
     
-    while True:
-        # Выбор уровня сложности
-        print("\nВыберите уровень сложности:")
-        print("1. Легкий (10 попыток)")
-        print("2. Средний (5 попыток)")
-        print("3. Сложный (3 попытки)")
+    # Константы для настроек игры
+    DIFFICULTY_LEVELS = {
+        1: {"code": "easy", "name": "Легкий", "attempts": 10, "hint_chance": 0.5},
+        2: {"code": "medium", "name": "Средний", "attempts": 5, "hint_chance": 0.3},
+        3: {"code": "hard", "name": "Сложный", "attempts": 3, "hint_chance": 0.1}
+    }
+    
+    def __init__(self):
+        """Инициализация игры"""
+        self.records = {level["code"]: {"attempts": float('inf'), "time": float('inf')} 
+                       for level in self.DIFFICULTY_LEVELS.values()}
+        self.secret_number = None
+        self.current_level = None
+        self.start_time = None
+
+    def run(self):
+        """Основной цикл игры"""
+        print("Добро пожаловать в игру 'Угадай число'!")
         
         while True:
-            try:
-                difficulty = int(input("Введите номер: "))
-                if difficulty == 1:
-                    attempts = 10
-                    level = "easy"
-                    break
-                elif difficulty == 2:
-                    attempts = 5
-                    level = "medium"
-                    break
-                elif difficulty == 3:
-                    attempts = 3
-                    level = "hard"
-                    break
-                else:
-                    print("Пожалуйста, выберите корректный уровень сложности (1, 2 или 3).")
-            except ValueError:
-                print("Пожалуйста, введите число.")
-        
-        print(f"Отлично! Вы выбрали {'легкий' if difficulty == 1 else 'средний' if difficulty == 2 else 'сложный'} уровень сложности.")
-        print(f"У вас есть {attempts} попыток.")
-        
-        # Загадываем число
-        secret_number = random.randint(1, 100)
-        print("Начинаем игру!")
-        
-        # Запускаем таймер
-        start_time = time.time()
-        
-        # Основной игровой цикл
-        for attempt in range(1, attempts + 1):
-            while True:
-                try:
-                    guess = input("Введите число (или 'подсказка', чтобы получить помощь): ")
-                    if guess.lower() == 'подсказка':
-                        give_hint(secret_number)
-                        continue
-                    guess = int(guess)
-                    if 1 <= guess <= 100:
-                        break
-                    else:
-                        print("Число должно быть в диапазоне от 1 до 100.")
-                except ValueError:
-                    print("Пожалуйста, введите целое число или 'подсказка'.")
+            self.select_difficulty()
+            self.generate_secret_number()
+            self.play()
             
-            # Проверка угаданного числа
-            if guess == secret_number:
-                end_time = time.time()
-                elapsed_time = round(end_time - start_time, 2)
-                print(f"Поздравляем! Вы угадали число за {attempt} попыток!")
-                print(f"Время, затраченное на угадывание: {elapsed_time} секунд.")
-                
-                # Обновление рекорда
-                if attempt < records[level]["attempts"] or (attempt == records[level]["attempts"] and elapsed_time < records[level]["time"]):
-                    records[level]["attempts"] = attempt
-                    records[level]["time"] = elapsed_time
-                    print(f"Новый рекорд для этого уровня: {attempt} попыток за {elapsed_time} секунд!")
+            if not self.ask_play_again():
+                self.show_records()
                 break
-            elif guess < secret_number:
-                print("Неверно! Загаданное число больше.")
-            else:
-                print("Неверно! Загаданное число меньше.")
-            
-            # Вывод оставшихся попыток
-            remaining_attempts = attempts - attempt
-            if remaining_attempts > 0:
-                print(f"Осталось попыток: {remaining_attempts}")
-            else:
-                end_time = time.time()
-                elapsed_time = round(end_time - start_time, 2)
-                print(f"К сожалению, вы исчерпали все попытки. Загаданное число было: {secret_number}.")
-                print(f"Время, затраченное на угадывание: {elapsed_time} секунд.")
-        
-        # Предложение сыграть ещё раз
-        play_again = input("\nХотите сыграть ещё раз? (да/нет): ").lower()
-        if play_again != 'да':
-            print("\nСпасибо за игру! Вот ваши рекорды:")
-            for lvl, record in records.items():
-                print(f"- {lvl.capitalize()}: {record['attempts']} попыток за {record['time']} секунд")
-            break
 
-def give_hint(secret_number):
-    """Функция для предоставления подсказки."""
-    hints = [
-        f"Загаданное число ближе к {secret_number - random.randint(1, 10)}.",
-        f"Загаданное число делится на {random.choice([x for x in range(1, 11) if secret_number % x == 0])}.",
-        f"Загаданное число {'чётное' if secret_number % 2 == 0 else 'нечётное'}."
-    ]
-    print(random.choice(hints))
+    def select_difficulty(self):
+        """Выбор уровня сложности"""
+        while True:
+            print("\nВыберите уровень сложности:")
+            for num, level in self.DIFFICULTY_LEVELS.items():
+                print(f"{num}. {level['name']} ({level['attempts']} попыток)")
+                
+            try:
+                choice = int(input("Введите номер: "))
+                if 1 <= choice <= 3:
+                    level_data = self.DIFFICULTY_LEVELS[choice]
+                    self.current_level = level_data['code']  # Используем код уровня
+                    self.attempts_left = level_data['attempts']
+                    break
+                print("Пожалуйста, введите число от 1 до 3")
+            except ValueError:
+                print("Некорректный ввод. Введите число.")
+
+    def generate_secret_number(self):
+        """Генерация случайного числа и запуск таймера"""
+        self.secret_number = random.randint(1, 100)
+        self.start_time = time.time()
+        print(f"\nЗагадано число от 1 до 100. У вас {self.attempts_left} попыток!")
+
+    def play(self):
+        """Основной игровой процесс"""
+        for attempt in range(1, self.attempts_left + 1):
+            guess = self.get_user_input(attempt)
+            
+            if self.check_guess(guess, attempt):
+                return
+                
+        self.game_over()
+
+    def get_user_input(self, attempt):
+        """Обработка пользовательского ввода"""
+        while True:
+            user_input = input(f"Попытка {attempt}: Введите число (или 'подсказка'): ").lower()
+            
+            if user_input == 'подсказка':
+                self.show_hint()
+                continue
+                
+            if user_input.isdigit():
+                return int(user_input)
+                
+            print("Введите число от 1 до 100 или 'подсказка'")
+
+    def check_guess(self, guess, attempt):
+        """Проверка угаданного числа"""
+        if guess == self.secret_number:
+            self.process_win(attempt)
+            return True
+            
+        print("Загаданное число больше" if guess < self.secret_number else "Загаданное число меньше")
+        return False
+
+    def process_win(self, attempt):
+        """Обработка победы"""
+        elapsed_time = round(time.time() - self.start_time, 2)
+        print(f"\nПоздравляем! Вы угадали число за {attempt} попыток и {elapsed_time} секунд!")
+        
+        if self.is_new_record(attempt, elapsed_time):
+            self.update_record(attempt, elapsed_time)
+            print(f"Новый рекорд для уровня {self.current_level}!")
+
+    def is_new_record(self, attempts, time):
+        """Проверка на новый рекорд"""
+        current_record = self.records[self.current_level]
+        return (attempts < current_record["attempts"] or 
+                (attempts == current_record["attempts"] and time < current_record["time"]))
+
+    def update_record(self, attempts, time):
+        """Обновление рекорда"""
+        self.records[self.current_level] = {"attempts": attempts, "time": time}
+
+    def game_over(self):
+        """Завершение игры при исчерпании попыток"""
+        elapsed_time = round(time.time() - self.start_time, 2)
+        print(f"\nК сожалению, вы проиграли. Загаданное число было {self.secret_number}")
+        print(f"Затраченное время: {elapsed_time} секунд")
+
+    def show_hint(self):
+        """Генерация и вывод подсказки"""
+        if random.random() < self.DIFFICULTY_LEVELS[self.current_level]['hint_chance']:
+            hints = [
+                f"Число оканчивается на {self.secret_number % 10}",
+                f"Сумма цифр: {sum(map(int, str(self.secret_number)))}",
+                f"{'Четное' if self.secret_number % 2 == 0 else 'Нечетное'} число",
+                f"Ближе к {self.secret_number + random.randint(-10, 10)}"
+            ]
+            print("\nПодсказка: " + random.choice(hints))
+        else:
+            print("К сожалению, сейчас подсказка недоступна")
+
+    def ask_play_again(self):
+        """Предложение сыграть снова"""
+        return input("\nХотите сыграть еще раз? (да/нет): ").lower() == 'да'
+
+    def show_records(self):
+        """Вывод рекордов"""
+        print("\nВаши лучшие результаты:")
+        for level, record in self.records.items():
+            print(f"{level.capitalize()}: {record['attempts']} попыток за {record['time']} секунд")
 
 if __name__ == "__main__":
-    main()
+    game = Game()
+    game.run()
